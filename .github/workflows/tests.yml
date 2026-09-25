@@ -1,0 +1,80 @@
+name: Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    name: ${{ matrix.os }} / ${{ matrix.compiler }} / ${{ matrix.config }} / shared=${{ matrix.shared }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2022]
+        config: [Debug, Release]
+        compiler: [default]
+        shared: ["OFF"]
+        include:
+          - os: ubuntu-24.04
+            compiler: clang++-18
+            config: Debug
+            shared: "OFF"
+          - os: ubuntu-24.04
+            compiler: clang++-18
+            config: Release
+            shared: "OFF"
+          - os: ubuntu-24.04
+            compiler: default
+            config: Release
+            shared: "ON"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        shell: bash
+        run: |
+          extra=()
+          if [[ '${{ matrix.compiler }}' != default ]]; then
+            extra+=("-DCMAKE_CXX_COMPILER=${{ matrix.compiler }}")
+          elif [[ '${{ runner.os }}' == Linux ]]; then
+            extra+=("-DCMAKE_CXX_COMPILER=g++-13")
+          fi
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DBUILD_SHARED_LIBS=${{ matrix.shared }} "${extra[@]}"
+      - name: Build
+        run: cmake --build build --config ${{ matrix.config }} --parallel 4
+      - name: Test
+        run: ctest --test-dir build -C ${{ matrix.config }} --output-on-failure
+      - name: Install
+        run: cmake --install build --config ${{ matrix.config }} --prefix "${{ github.workspace }}/install"
+      - name: Configure independent consumer
+        run: cmake -S tests/consumer -B build-consumer -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DCMAKE_PREFIX_PATH="${{ github.workspace }}/install"
+      - name: Build independent consumer
+        run: cmake --build build-consumer --config ${{ matrix.config }} --parallel 4
+      - name: Run independent consumer
+        run: ctest --test-dir build-consumer -C ${{ matrix.config }} --output-on-failure
+  sanitizers:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address, undefined, thread]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure ThreadSanitizer address space
+        if: matrix.sanitizer == 'thread'
+        run: sudo sysctl vm.mmap_rnd_bits=28
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_CXX_COMPILER=g++-13 -DCMAKE_BUILD_TYPE=Debug -DTHREADPOOL_SANITIZER=${{ matrix.sanitizer }} -DTHREADPOOL_BUILD_EXAMPLES=OFF
+      - name: Build
+        run: cmake --build build --parallel 4
+      - name: Test
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+          TSAN_OPTIONS: halt_on_error=1
+        run: ctest --test-dir build --output-on-failure

@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.24)
+project(ThreadPoolConsumer LANGUAGES CXX)
+find_package(ThreadPoolCPP 1 CONFIG REQUIRED)
+add_executable(consumer main.cpp)
+target_link_libraries(consumer PRIVATE ThreadPoolCPP::threadpool)
+enable_testing()
+add_test(NAME installed.consumer COMMAND consumer)
