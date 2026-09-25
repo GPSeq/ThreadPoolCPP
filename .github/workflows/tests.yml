@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-15, windows-2022]
+        os: [ubuntu-24.04, macos-26, windows-2022]
         config: [Debug, Release]
         compiler: [default]
         shared: ["OFF"]
@@ -35,6 +35,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - name: Select and report Apple toolchain
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          xcodebuild -version
+          xcrun clang++ --version
+          echo "CXX=$(xcrun --find clang++)" >> "$GITHUB_ENV"
       - name: Configure
         shell: bash
         run: |

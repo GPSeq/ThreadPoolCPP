@@ -4,6 +4,38 @@ project(ThreadPoolCPP VERSION 1.0.0 LANGUAGES CXX)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 find_package(Threads REQUIRED)
+# Language mode alone does not guarantee that the selected standard library
+# implements C++20 cancellation (notably older Apple SDKs).
+include(CheckCXXSourceCompiles)
+function(threadpool_check_cxx20_threads)
+    set(CMAKE_CXX_STANDARD 20)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_CXX_EXTENSIONS OFF)
+    set(CMAKE_REQUIRED_LIBRARIES Threads::Threads)
+    check_cxx_source_compiles([=[
+        #include <stop_token>
+        #include <thread>
+        int main() {
+            std::stop_source source;
+            std::stop_token token = source.get_token();
+            std::stop_callback callback(token, [] {});
+            std::jthread worker([](std::stop_token) {});
+            source.request_stop();
+            return token.stop_requested() ? 0 : 1;
+        }
+    ]=] THREADPOOL_HAS_CXX20_STOP_TOKEN)
+    if(NOT THREADPOOL_HAS_CXX20_STOP_TOKEN)
+        message(FATAL_ERROR
+            "ThreadPoolCPP requires C++20 std::stop_token, std::stop_source, "
+            "std::stop_callback and std::jthread in the selected standard library. "
+            "Enabling -std=c++20 alone is insufficient. On macOS, select a recent "
+            "Xcode 26 toolchain/SDK (CI uses macos-26), or use LLVM with libc++ 20+. "
+            "Configure in a fresh build directory after changing toolchains. "
+            "See CMake's configure log for the failed compile/link probe.")
+    endif()
+endfunction()
+threadpool_check_cxx20_threads()
+
 option(THREADPOOL_BUILD_TESTS "Build the correctness and stress suite" ${PROJECT_IS_TOP_LEVEL})
 option(THREADPOOL_BUILD_EXAMPLES "Build examples and benchmark" ${PROJECT_IS_TOP_LEVEL})
 option(THREADPOOL_FETCH_SPDLOG "Download pinned spdlog if no installed package exists" ON)
