@@ -46,9 +46,16 @@ ctest --test-dir build-tsan --output-on-failure
 ```
 
 `undefined` is also supported on GCC/Clang. CI tests GCC and Clang on Linux,
-AppleClang on macOS, MSVC on Windows, Debug/Release configurations, and separate
+AppleClang with the default Xcode 26 SDK on `macos-26`, MSVC on Windows,
+Debug/Release configurations, and separate
 Linux sanitizer jobs. Instrumented builds are for verification, not benchmarking.
 A sanitizer startup failure caused by the host runtime is not a passing race check.
+
+The macOS jobs select AppleClang through `xcrun` for both the library and installed
+consumer and print the toolchain versions. The former `macos-15` default SDK lacked
+the required stop-token types. Every library configure now compiles and links a
+probe using stop tokens, callbacks and `std::jthread`; an unsupported library fails
+early with a toolchain diagnostic instead of failing during the main build.
 
 ## Benchmarking
 

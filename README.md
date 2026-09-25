@@ -26,8 +26,17 @@ tasks or dependency-heavy workloads.
 ## Quick start
 
 Requires CMake 3.24+, a compiler and standard library supporting C++20 stop tokens,
-and threads. CI targets GCC 13, Clang 18, AppleClang, and Visual Studio 2022.
+and threads. CI targets GCC 13, Clang 18, AppleClang on `macos-26`, and Visual Studio 2022.
 CMake uses installed fmt-based spdlog >= 1.15.3 or fetches a pinned version on first configure.
+
+On macOS, use a recent Xcode 26 toolchain and SDK. Older Apple standard libraries
+can accept C++20 mode while omitting `std::stop_token` and `std::jthread`.
+CMake checks these facilities before downloading dependencies. With multiple Xcode
+versions installed, select the intended one using `DEVELOPER_DIR` and configure a
+fresh build directory with `-DCMAKE_CXX_COMPILER="$(xcrun --find clang++)"`.
+Changing the compiler alone is insufficient if it still uses an older libc++/SDK.
+Upstream LLVM users need libc++ 20+ for nonexperimental stop-token support; see the
+[libc++ C++20 status](https://libcxx.llvm.org/Status/Cxx20.html).
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
