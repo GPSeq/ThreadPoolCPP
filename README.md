@@ -100,6 +100,15 @@ Open `build/docs/html/index.html`. The Docs workflow builds documentation for pu
 requests and deploys `main` to GitHub Pages. Set the repository's **Settings → Pages
 → Source** to **GitHub Actions** to enable deployment.
 
+If deployment returns `404 Not Found` after finding the `github-pages` artifact,
+open [the repository's Pages settings](https://github.com/GPSeq/ThreadPoolCPP/settings/pages)
+and select **GitHub Actions** under **Build and deployment → Source**. Then open
+the failed **Docs** workflow run and choose **Re-run failed jobs**. Building and
+uploading documentation does not enable Pages automatically; the default workflow
+token cannot perform that initial enablement. The deploy job checks this prerequisite
+with `actions/configure-pages` before attempting publication. A Node `punycode`
+deprecation warning is separate from a Pages API `404` failure.
+
 ## License
 
 MIT. See [LICENSE](LICENSE) and [third-party notices](third_party/NOTICE.md).

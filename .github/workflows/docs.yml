@@ -34,5 +34,9 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # One-time prerequisite: Settings > Pages > Source = GitHub Actions.
+      # The workflow token cannot enable a previously disabled Pages site.
+      - name: Check GitHub Pages configuration
+        uses: actions/configure-pages@v5
       - uses: actions/deploy-pages@v4
         id: deployment
